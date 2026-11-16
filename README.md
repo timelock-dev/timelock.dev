@@ -46,7 +46,7 @@ npm run dev                 # http://localhost:4327, runs on workerd with local 
 ## Deploy
 
 The Worker is named `timelock-dev` (Worker names cannot contain a dot). `wrangler.toml` holds everything it needs: the `timelock.dev`
-custom domain, the D1 database, the rate limit binding, compatibility settings and observability (off).
+and `www.timelock.dev` custom domains, the D1 database, the rate limit binding, compatibility settings and observability (off).
 
 Cloudflare Workers Builds deploys every push to `main` with these settings:
 

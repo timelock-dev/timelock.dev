@@ -7,8 +7,12 @@ compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-# The timelock.dev custom domain. Each deploy makes sure it points at this Worker.
-routes = [{ pattern = "timelock.dev", custom_domain = true }]
+# The custom domains. Each deploy points both at this Worker and detaches any custom domain of this Worker that is not
+# listed here, so a host removed from this list stops resolving.
+routes = [
+  { pattern = "timelock.dev", custom_domain = true },
+  { pattern = "www.timelock.dev", custom_domain = true },
+]
 
 [[d1_databases]]
 binding = "DB"
