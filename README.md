@@ -45,8 +45,8 @@ npm run dev                 # http://localhost:4327, runs on workerd with local 
 
 ## Deploy
 
-The Worker is named `timelock-dev` (Worker names cannot contain a dot). `wrangler.toml` holds everything it needs: the D1 database, the rate
-limit binding, compatibility settings and observability (off).
+The Worker is named `timelock-dev` (Worker names cannot contain a dot). `wrangler.toml` holds everything it needs: the `timelock.dev`
+custom domain, the D1 database, the rate limit binding, compatibility settings and observability (off).
 
 Cloudflare Workers Builds deploys every push to `main` with these settings:
 
@@ -63,9 +63,6 @@ npx wrangler login
 npm run build                                 # astro build
 npm run deploy                                # remote D1 migrations, then wrangler deploy
 ```
-
-The `timelock.dev` custom domain is the commented-out `routes` line in `wrangler.toml`. Deploying with it uncommented attaches the domain to this
-Worker and takes it from any other Worker that holds it. In CI wrangler does this without asking.
 
 The app needs no secrets or environment variables. If D1 is missing or its migration hasn't been applied, encryption and decryption keep working and recent activity shows as unavailable.
 
