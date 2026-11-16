@@ -102,8 +102,9 @@ const toc = [
 			</p>
 			<p>
 				<strong>Share links store the encrypted text, never the message.</strong> Every message encrypted on the website gets a share link, so we also store the encrypted block,
-				its SHA-256, a random id and how many times its page reported a decryption. Plain notes around the block are dropped. The page at that
-				link decrypts in the reader's browser. Nothing on this site links to message pages, so people find one only through its link. If a link is posted publicly, search
+				its SHA-256, an id derived from the block and how many times its page reported a decryption. Plain notes around the block are dropped. The page at that
+				link decrypts in the reader's browser. Nothing on this site links to message pages, so people find one only through its link or by
+				pasting its encrypted text into <a href="/decrypt">Decrypt</a>, which checks whether that text has a page. The check sends us an id derived from the encrypted text, not the text. If a link is posted publicly, search
 				engines can index it. After the unlock time, anyone with the encrypted text can decrypt it, including us.
 			</p>
 			<p>

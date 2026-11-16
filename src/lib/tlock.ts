@@ -57,6 +57,20 @@ export function extractArmor(text: string): { block: string; notes: string[] } |
 	return { block, notes };
 }
 
+/**
+ * The armored block in `text` in its one canonical form: the BEGIN line, standard base64 in 64-character lines, the END
+ * line, "\n" line endings. Notes around the block and any whitespace inside it (other line lengths, CRLF, blank lines,
+ * indentation, trailing spaces) make no difference. Returns null if there is no armored block or its body is not base64.
+ */
+export function canonicalArmor(text: string): string | null {
+	const block = extractArmor(text)?.block;
+	if (!block) return null;
+	const body = block.slice(ARMOR_HEADER.length, block.lastIndexOf(ARMOR_FOOTER)).replace(/\s+/g, "");
+	if (!/^[A-Za-z0-9+/]+={0,2}$/.test(body) || body.length % 4 !== 0) return null;
+	const base64 = Buffer.from(body, "base64").toString("base64");
+	return `${ARMOR_HEADER}\n${base64.match(/.{1,64}/g)!.join("\n")}\n${ARMOR_FOOTER}\n`;
+}
+
 function ageHeader(ciphertext: string): string {
 	const armor = extractArmor(ciphertext);
 	if (!armor) return ciphertext;

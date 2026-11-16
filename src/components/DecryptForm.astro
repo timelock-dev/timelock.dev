@@ -42,6 +42,7 @@
 	import { createDrandClient, DrandUnavailableError } from "../lib/drand";
 	import { decrypt, extractArmor, inspectCiphertext, InvalidCiphertextError, TooEarlyError, UnsupportedChainError, type CiphertextInfo } from "../lib/tlock";
 	import { decryptStatePanelHtml } from "../lib/status";
+	import { findMessagePage } from "../scripts/find-page";
 	import { shareLinkId, takeHandOff } from "../scripts/handoff";
 	import { reportEventOnce } from "../scripts/report";
 
@@ -57,6 +58,18 @@
 
 	const lockPanel = $("[data-lock-panel]");
 	let panelHtml = "";
+	/** The pasted text last checked for a hosted page, and that check. */
+	let looked = { text: "", page: Promise.resolve<string | null>(null) };
+
+	/** A hosted message has its own page with the countdown and the message, so pasted text that matches one goes there. */
+	function lookForPage(text: string) {
+		if (text === looked.text) return;
+		const page = findMessagePage(text);
+		looked = { text, page };
+		void page.then((path) => {
+			if (path && !form.hidden && input.value.trim() === text) location.assign(path);
+		});
+	}
 
 	function show(kind: "" | "ok" | "err", text: string) {
 		status.className = `status ${kind}`.trim();
@@ -92,6 +105,7 @@
 		try {
 			info = inspectCiphertext(text);
 			renderInfo();
+			lookForPage(text);
 		} catch (err) {
 			show("err", err instanceof Error ? err.message : String(err));
 		}
@@ -112,6 +126,7 @@
 		button.textContent = "Decrypting…";
 		try {
 			const pasted = input.value;
+			if (looked.text === pasted.trim() && (await looked.page)) return;
 			const result = await decrypt(pasted, client);
 			plaintext = result.plaintext;
 			let text: string | null = null;

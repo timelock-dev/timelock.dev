@@ -540,6 +540,8 @@ const presets: [amount: number, unit: string, label: string][] = [
 			$<HTMLDetailsElement>("[data-cipher-details]").open = !shareUrl;
 			// One primary action: the link when there is one, otherwise copying the encrypted text.
 			$("[data-copy]").classList.toggle("secondary", !!shareUrl);
+			// Decrypt sends hosted text to its page, which "Open the page" already does.
+			$("[data-to-decrypt]").hidden = !!shareUrl;
 			form.hidden = true;
 			result.hidden = false;
 			renderResult();

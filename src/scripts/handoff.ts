@@ -1,3 +1,5 @@
+import { MESSAGE_ID } from "../lib/message-id";
+
 const KEY = "timelock:decrypt";
 
 /** Where encrypted text is entered to be decrypted. */
@@ -30,6 +32,7 @@ export function takeHandOff(storage?: Storage): string | null {
 
 /** The id in a pasted share link ("https://timelock.dev/m/<id>" or "/m/<id>"), or null if the text is anything else. */
 export function shareLinkId(text: string): string | null {
-	const link = /^(?:https?:\/\/[^\s/]+)?\/m\/([0-9a-f-]{36})\/?$/i.exec(text.trim());
-	return link ? link[1].toLowerCase() : null;
+	const link = /^(?:https?:\/\/[^\s/]+)?\/m\/([0-9a-f-]{32,36})\/?$/i.exec(text.trim());
+	const id = link?.[1].toLowerCase();
+	return id && MESSAGE_ID.test(id) ? id : null;
 }

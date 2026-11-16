@@ -7,7 +7,7 @@ This repository is the site and API, deployed as the `timelock-dev` Cloudflare W
 [tlock-worker](https://github.com/thibmeu/tlock-worker) and is now an Astro (TypeScript) app.
 
 - **Website:** encrypts on the homepage and decrypts at [`/decrypt`](https://timelock.dev/decrypt), both in the browser with [tlock-js](https://github.com/drand/tlock-js). Messages are not sent to the server.
-- **Share links:** the website uploads the encrypted block (never the message) and returns a page at `/m/<uuid>` with a
+- **Share links:** the website uploads the encrypted block (never the message) and returns a page at `/m/<id>` with a
   live countdown. At the unlock time the page decrypts in the reader's browser. Also available as `POST /api/messages`.
 - **JSON API:** `POST /api/encrypt` and `POST /api/decrypt` (server-side). Documentation is at [`/docs`](https://timelock.dev/docs).
 - **Original endpoints:** `POST /encrypt/:round` and `POST /decrypt` still accept and return raw bytes, as before. (`GET /decrypt` is the Decrypt page.)
@@ -97,7 +97,11 @@ The event log stores the event type, server timestamp, drand round and unlock ti
 agents.
 
 Share links store the armored ciphertext block, its SHA-256, the round, the time received and a count of reported decryptions. Plaintext is never
-sent to or stored by the server, and notes around a block are stripped before storing. The id is a random UUID, no query lists messages and nothing on the
+sent to or stored by the server, and notes around a block are stripped before storing. The id is derived from the stored block: the first 128 bits of `SHA-256("timelock.dev message id v1\n" + block)` in hex, where the block is in canonical form
+(`canonicalArmor` in `src/lib/tlock.ts`). The same block therefore always has the same link, and storing it twice returns the existing one. The prefix keeps the id
+apart from the block's plain SHA-256, which people may post publicly as a timestamp. Messages hosted earlier keep their random UUID ids; `content_id` holds
+their derived id, filled in the first time each is read. The Decrypt page asks `GET /api/messages/<derived id>` for pasted text and opens the message's page if
+there is one, so the server sees that id (not the text) for anything pasted there. No query lists messages and nothing on the
 site links to them. Message pages may be indexed if a search engine finds a link that was posted publicly. Every `/m/` response carries
 `Referrer-Policy: no-referrer` and `Cache-Control: no-store` (set in `src/middleware.ts`), and the `/api/messages` JSON is `noindex`. Creating links is limited per IP by the `MESSAGE_LIMITER` rate limit binding and capped per day. Workers observability logs are deliberately not enabled. The site loads no analytics or third-party scripts.
 

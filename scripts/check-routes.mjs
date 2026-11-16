@@ -42,8 +42,10 @@ const type = (res) => res.headers.get("Content-Type") ?? "";
 	check("the homepage keeps the #encrypt and #activity anchors", html.includes('id="encrypt"') && html.includes('id="activity"'));
 }
 {
-	const res = await fetch(new URL("/m/00000000-0000-4000-8000-000000000000", base));
-	check("an unknown share link answers 404 and is never cached", res.status === 404 && res.headers.get("Cache-Control") === "no-store", `${res.status}`);
+	for (const id of ["00000000-0000-4000-8000-000000000000", "0".repeat(32)]) {
+		const res = await fetch(new URL(`/m/${id}`, base));
+		check(`an unknown share link (${id.length} characters) answers 404 and is never cached`, res.status === 404 && res.headers.get("Cache-Control") === "no-store", `${res.status}`);
+	}
 }
 
 if (failures) {

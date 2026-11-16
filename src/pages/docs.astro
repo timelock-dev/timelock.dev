@@ -164,12 +164,16 @@ curl -s https://timelock.dev/api/encrypt \
 			the <code>ciphertext</code> from <code>/api/encrypt</code> or any tlock tool. We store the encrypted block only: notes around it are
 			dropped, and this endpoint never sees your message. The block must still be locked.
 		</p>
+		<p>
+			The <code>id</code> is derived from the encrypted block, so the same block always has the same link. Sending a block that is already
+			hosted stores nothing new: you get its existing link back with status <code>200</code> instead of <code>201</code>.
+		</p>
 		<pre><code>curl -s https://timelock.dev/api/messages \
   -H 'Content-Type: application/json' \
   -d '&#123;"ciphertext": "-----BEGIN AGE ENCRYPTED FILE-----\n…\n-----END AGE ENCRYPTED FILE-----\n"&#125;'</code></pre>
 		<pre><code>&#123;
-  "id": "3f0c1e9a-7b52-4d1c-9a35-0c6f1d2e8b74",
-  "url": "https://timelock.dev/m/3f0c1e9a-7b52-4d1c-9a35-0c6f1d2e8b74",
+  "id": "5d41c7a09e3b8f2610c4a7de93b05f18",
+  "url": "https://timelock.dev/m/5d41c7a09e3b8f2610c4a7de93b05f18",
   "round": {exRound},
   "unlockAt": "{exUnlock}",
   "unlockAtUnix": {exUnix},
@@ -178,13 +182,19 @@ curl -s https://timelock.dev/api/encrypt \
   "openedAt": null
 &#125;</code></pre>
 		<p class="small">
-			There is no endpoint that lists or searches messages, and the id can't be guessed, so keep the <code>url</code>.
+			There is no endpoint that lists or searches messages, and the id can't be guessed without the encrypted block, so keep the <code>url</code>.
 			Hosted messages can't be edited or deleted through the API. <code>sha256</code> is the hash of the stored block.
+		</p>
+		<p class="small">
+			The id is the first 32 hex digits of <code>SHA-256("timelock.dev message id v1\n" + block)</code>, where <code>block</code> is the
+			armored block in its standard form: the BEGIN line, base64 in 64-character lines, the END line, each ending in <code>\n</code>. That
+			is how the block is stored, so notes and extra whitespace in what you send don't change the id. It is not part of the
+			block's plain <code>sha256</code>. Messages hosted before ids were derived keep their UUID ids and links.
 		</p>
 
 		<h2 id="message"><span class="method get">GET</span>/api/messages/:id</h2>
-		<p>Returns the same fields plus the stored <code>ciphertext</code>. It works before and after the unlock time. <code>openedAt</code> is the first time the page reported a decryption, or <code>null</code>.</p>
-		<pre><code>curl -s https://timelock.dev/api/messages/3f0c1e9a-7b52-4d1c-9a35-0c6f1d2e8b74</code></pre>
+		<p>Returns the same fields plus the stored <code>ciphertext</code>. A derived id also finds a message that was hosted under a UUID; the response carries the message's own <code>id</code> and <code>url</code>. It works before and after the unlock time. <code>openedAt</code> is the first time the page reported a decryption, or <code>null</code>.</p>
+		<pre><code>curl -s https://timelock.dev/api/messages/5d41c7a09e3b8f2610c4a7de93b05f18</code></pre>
 
 		<h2 id="events"><span class="method get">GET</span>/api/events</h2>
 		<p>The rows behind <a href="/#activity">recent activity</a> on the homepage, newest first. They contain no messages, encrypted text or IP addresses.</p>
