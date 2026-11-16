@@ -17,7 +17,6 @@
 	--green-hover: #1c8139;
 	--ok: #1a7f37;
 	--err: #d1242f;
-	--done: #8250df;
 	--code-bg: #818b981f;
 	--radius: 8px;
 	--radius-lg: 12px;
@@ -270,18 +269,28 @@ tbody tr:nth-child(2n) {
 
 /* Activity */
 
+.activity-stats {
+	margin: 0;
+	padding: 14px 20px;
+	border-bottom: 1px solid var(--border-muted);
+	color: var(--muted);
+}
+
+.activity-stats strong {
+	color: var(--text);
+}
+
 .activity-list {
 	list-style: none;
 	padding: 0;
-	margin: 12px 0 0;
-	border-top: 1px solid var(--border-muted);
+	margin: 0;
 }
 
 .activity-row {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 10px 20px;
+	padding: 8px 20px;
 	border-top: 1px solid var(--border-muted);
 	min-width: 0;
 }
@@ -293,14 +302,17 @@ tbody tr:nth-child(2n) {
 .activity-icon {
 	display: inline-flex;
 	flex: none;
-}
-
-.activity-icon.is-lock {
 	color: var(--ok);
 }
 
-.activity-icon.is-unlock {
-	color: var(--done);
+.activity-more {
+	margin: 0;
+	text-align: center;
+	font-size: 14px;
+}
+
+.activity-more a {
+	font-weight: 500;
 }
 
 .activity-main {
@@ -324,12 +336,23 @@ tbody tr:nth-child(2n) {
 	color: var(--muted);
 }
 
+/* On a phone each row is two short lines: the lock, then when it opens. */
 @media (max-width: 543px) {
-	.activity-row .Label {
+	.activity-row .Label,
+	.activity-sep {
 		display: none;
 	}
 	.activity-main {
+		display: flex;
+		flex-direction: column;
 		white-space: normal;
+		line-height: 1.35;
+	}
+	.activity-row {
+		align-items: flex-start;
+	}
+	.activity-icon {
+		margin-top: 2px;
 	}
 }
 

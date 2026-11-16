@@ -4,21 +4,13 @@ import Activity from "../components/Activity.astro";
 import EncryptForm from "../components/EncryptForm.astro";
 import Icon from "../components/Icon.astro";
 import Base from "../layouts/Base.astro";
-import { ACTIVITY_LIMIT } from "../lib/activity";
-import { eventStats, listEvents, type EventStats, type FeedEvent } from "../lib/events";
+import { ACTIVITY_PREVIEW } from "../lib/activity";
+import { loadActivity } from "../lib/activity-data";
 
 export const prerender = false;
 
 const now = Date.now();
-let events: FeedEvent[] | null = null;
-let stats: EventStats | null = null;
-if (env.DB) {
-	try {
-		[events, stats] = await Promise.all([listEvents(env.DB, { limit: ACTIVITY_LIMIT }), eventStats(env.DB, now)]);
-	} catch (err) {
-		console.error("failed to load activity", err);
-	}
-}
+const activity = await loadActivity(env.DB, ACTIVITY_PREVIEW, now);
 Astro.response.headers.set("Cache-Control", "no-cache");
 const description =
 	"Lock a message until a time you pick and share it as a link with a live countdown. It is encrypted in your browser with drand timelock encryption, so nobody can read it early. Free, no account.";
@@ -56,6 +48,6 @@ const jsonLd = {
 			<li><Icon name="shield" /><span>We never see your message</span></li>
 			<li><Icon name="check" /><span>No account, no cookies</span></li>
 		</ul>
-		<Activity events={events} stats={stats} now={now} />
+		<Activity data={activity} now={now} limit={ACTIVITY_PREVIEW} />
 	</div>
 </Base>

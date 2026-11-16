@@ -264,7 +264,7 @@ export async function getStats(deps: Pick<Deps, "db" | "now">): Promise<Response
 	}
 }
 
-/** GET /api/events?limit=20&before=<id> */
+/** GET /api/events?limit=20&before=<id>&type=encrypt */
 export async function getEvents(url: URL, deps: Pick<Deps, "db">): Promise<Response> {
 	try {
 		if (!deps.db) throw new ApiError(503, "feed_unavailable", "The activity feed is not configured.");
@@ -276,7 +276,11 @@ export async function getEvents(url: URL, deps: Pick<Deps, "db">): Promise<Respo
 		if (before !== undefined && (!Number.isInteger(before) || before < 1)) {
 			throw new ApiError(400, "invalid_request", "`before` must be a positive event id.");
 		}
-		const events = await listEvents(deps.db, { limit, before });
+		const type = url.searchParams.get("type") ?? undefined;
+		if (type !== undefined && type !== "encrypt" && type !== "decrypt") {
+			throw new ApiError(400, "invalid_request", "`type` must be \"encrypt\" or \"decrypt\".");
+		}
+		const events = await listEvents(deps.db, { limit, before, type });
 		const nextBefore = events.length === limit ? events[events.length - 1].id : null;
 		return json({ events, nextBefore }, { headers: { "Cache-Control": "public, max-age=5" } });
 	} catch (err) {

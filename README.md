@@ -11,8 +11,9 @@ This repository is the site and API, deployed as the `timelock-dev` Cloudflare W
   live countdown. At the unlock time the page decrypts in the reader's browser. Also available as `POST /api/messages`.
 - **JSON API:** `POST /api/encrypt` and `POST /api/decrypt` (server-side). Documentation is at [`/docs`](https://timelock.dev/docs).
 - **Original endpoints:** `POST /encrypt/:round` and `POST /decrypt` still accept and return raw bytes, as before. (`GET /decrypt` is the Decrypt page.)
-- **Recent activity:** the homepage lists the last 10 events and 30-day counts from an anonymous event log in Cloudflare D1 (type, timestamps,
-  round). The same data is at `GET /api/events` and `GET /api/stats`.
+- **Recent activity:** the homepage previews the last 10 locked messages and [`/activity`](https://timelock.dev/activity) lists the last 50, with
+  30-day counts, from an anonymous event log in Cloudflare D1 (type, timestamps, round). Decryptions are recorded and counted but not listed: each is
+  only someone opening a message. Rows hold no message id and never link to a message. The same data is at `GET /api/events` and `GET /api/stats`.
 - **Transparency:** [`/how-it-works`](https://timelock.dev/how-it-works) covers the scheme, the network, what the server sees and the limitations.
 
 Ciphertext is a standard age file, interchangeable with [dee](https://github.com/thibmeu/drand-rs), [tlock](https://github.com/drand/tlock) and
@@ -86,8 +87,9 @@ src/lib/message-view.ts  countdown digits, link-preview text and other rendering
 src/scripts/message.ts   the /m/<id> page: countdown on the server clock, then in-browser decryption
 src/scripts/handoff.ts   passes encrypted text from the encrypt result to /decrypt, and spots pasted share links
 src/lib/activity.ts   stats sentence and activity rows, shared by the server render and the browser refresh
+src/lib/activity-data.ts what the activity list loads: the latest locked messages and the 30-day stats
 src/lib/unlock.ts     unlock-time picker logic: duration and date validation, calendar grid, time zones
-src/pages/            Astro pages (the homepage, /decrypt and /m/<id> are server-rendered, the rest prerendered) and thin endpoint wrappers
+src/pages/            Astro pages (the homepage, /decrypt, /activity and /m/<id> are server-rendered, the rest prerendered) and thin endpoint wrappers
 src/components/       encrypt form (unlock-time picker), decrypt form, recent activity, logo
 migrations/           D1 schema
 patches/              tlock-js patch: Web Crypto randomness for workerd, no beacon logging, final age chunk for empty messages

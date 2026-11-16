@@ -382,7 +382,27 @@ describe("feed: /api/events", () => {
 		expect(body3).toMatchObject({ events: [{ id: 1 }], nextBefore: null });
 	});
 
-	it.each(["limit=0", "limit=101", "limit=abc", "before=-1", "before=x"])("rejects ?%s", async (q) => {
+	it("narrows the list to one type with ?type=, and pages within it", async () => {
+		const { db } = makeDeps();
+		for (let i = 0; i < 7; i++) await recordEvent(db, { type: i % 2 ? "decrypt" : "encrypt", source: "api", round: 10 + i, unlockAt: roundTime(10 + i), createdAt: 1_000 * i });
+		const get = async (q: string) => (await (await getEvents(new URL(`https://timelock.dev/api/events?${q}`), { db })).json()) as { events: { id: number; type: string }[]; nextBefore: number | null };
+		const locks = await get("type=encrypt&limit=3");
+		expect(locks.events.map((e) => e.id)).toEqual([7, 5, 3]);
+		expect(locks.events.every((e) => e.type === "encrypt")).toBe(true);
+		expect(locks.nextBefore).toBe(3);
+		expect(await get(`type=encrypt&limit=3&before=${locks.nextBefore}`)).toMatchObject({ events: [{ id: 1 }], nextBefore: null });
+		expect((await get("type=decrypt")).events.map((e) => e.id)).toEqual([6, 4, 2]);
+		// Without `type` the list is unchanged: both kinds, newest first.
+		expect((await get("limit=4")).events.map((e) => e.id)).toEqual([7, 6, 5, 4]);
+	});
+
+	it("reads the typed list through the (type, id) index", async () => {
+		const { db } = makeDeps();
+		const plan = await db.prepare("EXPLAIN QUERY PLAN SELECT id FROM events WHERE type = ? AND id < ? ORDER BY id DESC LIMIT ?").bind("encrypt", 100, 10).all<{ detail: string }>();
+		expect(plan.results.map((r) => r.detail).join(" ")).toContain("events_type_id");
+	});
+
+	it.each(["limit=0", "limit=101", "limit=abc", "before=-1", "before=x", "type=peek", "type=", "type=ENCRYPT"])("rejects ?%s", async (q) => {
 		const { db } = makeDeps();
 		expect((await getEvents(new URL(`https://timelock.dev/api/events?${q}`), { db })).status).toBe(400);
 	});

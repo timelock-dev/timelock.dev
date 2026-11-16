@@ -30,7 +30,7 @@ async function digest(text: string): Promise<string> {
 	return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Tells the server an encryption/decryption happened (type + round only) so it shows up in recent activity on the homepage. */
+/** Tells the server an encryption/decryption happened (type + round only) so it is counted and, for an encryption, shows up in recent activity. */
 export function reportEvent(type: EventType, round: number): void {
 	fetch("/api/events", {
 		method: "POST",

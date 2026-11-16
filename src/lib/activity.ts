@@ -2,7 +2,12 @@ import type { EventStats, FeedEvent } from "./events";
 import { iconSvg } from "./icons";
 import { formatLocal, formatRelative, formatShortDate, formatSpan, formatUtc } from "./time";
 
-export const ACTIVITY_LIMIT = 10;
+/** Rows in the homepage preview and on the "See all" page. */
+export const ACTIVITY_PREVIEW = 10;
+export const ACTIVITY_FULL = 50;
+
+/** The path of the "See all" page. */
+export const ACTIVITY_PATH = "/activity";
 
 const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const count = (n: number) => n.toLocaleString("en-US");
@@ -54,35 +59,37 @@ export function statsHtml(stats: EventStats): string {
 	);
 }
 
-/**
- * The parts after "Encrypted"/"Decrypted": ["4-day lock", "opens Oct 26, 1:30 PM EDT"], ["4-day lock", "opened 2 hours ago"]
- * or ["unlocked Oct 26, 1:30 PM EDT"]. A decrypt isn't linked to its encryption, so its lock length is unknown.
- */
-export function eventDetail(e: FeedEvent, now: number, timeZone?: string): string[] {
+/** How a locked message reads in the list: ["4-day lock", "opens Oct 26, 1:30 PM EDT"] or ["4-day lock", "opened 2 hours ago"]. */
+export function lockDetail(e: FeedEvent, now: number, timeZone?: string): [string, string] {
 	const created = Date.parse(e.createdAt);
 	const unlock = Date.parse(e.unlockAt);
-	if (e.type === "decrypt") return [`unlocked ${formatShortDate(unlock, { timeZone, now })}`];
 	const lock = unlock > created ? lockLabel((unlock - created) / 1000) : "no lock";
 	return [lock, unlock > now ? `opens ${formatShortDate(unlock, { timeZone, now })}` : `opened ${formatRelative(unlock, now)}`];
 }
 
-/** `timeZone` is for dates; the server passes "UTC", the browser leaves it unset for local time. */
-export function eventRowHtml(e: FeedEvent, now: number, timeZone?: string): string {
+export interface RowOptions {
+	/** For dates; the server passes "UTC", the browser leaves it unset for local time. */
+	timeZone?: string;
+	/** Show whether it was locked on the website or through the API. */
+	source?: boolean;
+}
+
+/**
+ * One locked message. A row is built only from the lock's times and round: there is no message id in an event, so a
+ * row can't link to or identify a message page.
+ */
+export function lockRowHtml(e: FeedEvent, now: number, { timeZone, source = false }: RowOptions = {}): string {
 	const created = Date.parse(e.createdAt);
 	const unlock = Date.parse(e.unlockAt);
-	const encrypted = e.type === "encrypt";
 	const tooltip = `${unlock > now ? `Opens ${formatRelative(unlock, now)}. ` : ""}Unlock time ${formatUtc(unlock)}, drand round #${count(e.round)}`;
-	const detail = eventDetail(e, now, timeZone)
-		.map((part) => ` · ${escape(part)}`)
-		.join("");
+	const [lock, when] = lockDetail(e, now, timeZone);
 	return `<li class="activity-row">
-	<span class="activity-icon ${encrypted ? "is-lock" : "is-unlock"}">${iconSvg(encrypted ? "lock" : "unlock")}</span>
-	<span class="activity-main" title="${escape(tooltip)}"><strong>${encrypted ? "Encrypted" : "Decrypted"}</strong><span class="muted">${detail}</span></span>
-	<span class="Label">${e.source === "web" ? "website" : "API"}</span>
+	<span class="activity-icon">${iconSvg("lock")}</span>
+	<span class="activity-main" title="${escape(tooltip)}"><strong>${escape(lock)}</strong><span class="muted"><span class="activity-sep"> · </span>${escape(when)}</span></span>${source ? `\n\t<span class="Label">${e.source === "web" ? "website" : "API"}</span>` : ""}
 	<time class="activity-time muted" datetime="${escape(e.createdAt)}" title="${escape(formatLocal(created, { timeZone }))}">${escape(formatRelative(created, now))}</time>
 </li>`;
 }
 
-export function activityRowsHtml(events: FeedEvent[], now: number, timeZone?: string): string {
-	return events.map((e) => eventRowHtml(e, now, timeZone)).join("\n");
+export function activityRowsHtml(events: FeedEvent[], now: number, options: RowOptions = {}): string {
+	return events.map((e) => lockRowHtml(e, now, options)).join("\n");
 }
