@@ -40,6 +40,22 @@ const type = (res) => res.headers.get("Content-Type") ?? "";
 	check("the homepage forwards the old #decrypt anchor", html.includes('location.hash === "#decrypt"') && html.includes('location.replace("/decrypt")'));
 	check("the homepage no longer contains the decrypt form", !html.includes('id="decrypt-form"'));
 	check("the homepage keeps the #encrypt and #activity anchors", html.includes('id="encrypt"') && html.includes('id="activity"'));
+	check("the homepage activity preview links to no message page", !html.includes("/m/"));
+	check("the homepage activity preview shows at most 10 rows", (html.match(/class="activity-row"/g) ?? []).length <= 10);
+}
+{
+	const res = await fetch(new URL("/activity", base));
+	const html = await res.text();
+	check("GET /activity is the full activity page", res.status === 200 && type(res) === "text/html" && html.includes("<h1>Recent activity</h1>"), `${res.status} ${type(res)}`);
+	check("the activity page links to no message page", !html.includes("/m/"));
+	check("the activity page shows at most 50 rows", (html.match(/class="activity-row"/g) ?? []).length <= 50);
+}
+{
+	const res = await fetch(new URL("/api/events?type=encrypt&limit=100", base));
+	const { events } = await res.json();
+	check("GET /api/events?type=encrypt returns encryptions only", res.status === 200 && events.every((e) => e.type === "encrypt"), `${res.status}`);
+	const bad = await fetch(new URL("/api/events?type=peek", base));
+	check("GET /api/events rejects an unknown type", bad.status === 400, `${bad.status}`);
 }
 {
 	for (const id of ["00000000-0000-4000-8000-000000000000", "0".repeat(32)]) {

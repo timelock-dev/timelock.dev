@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventDetail, eventRowHtml, lockLabel, lockLength, statsText } from "../src/lib/activity";
+import { activityRowsHtml, lockDetail, lockLabel, lockLength, lockRowHtml, statsText } from "../src/lib/activity";
 import type { FeedEvent } from "../src/lib/events";
 
 const now = Date.UTC(2026, 9, 22, 12);
@@ -53,34 +53,40 @@ describe("activity rows", () => {
 		const created = Date.UTC(2026, 9, 22, 17, 30);
 		const e = event({ createdAt: new Date(created).toISOString(), unlockAt: new Date(created + 4 * 86400_000 + 2000).toISOString() });
 		const at = created + 59 * 60_000;
-		expect(eventDetail(e, at)).toEqual(["4-day lock", "opens Oct 26, 1:30 PM EDT"]);
-		expect(eventDetail(e, at, "UTC")).toEqual(["4-day lock", "opens Oct 26, 5:30 PM UTC"]);
-		const html = eventRowHtml(e, at);
-		expect(html).toContain("<strong>Encrypted</strong><span class=\"muted\"> · 4-day lock · opens Oct 26, 1:30 PM EDT</span>");
+		expect(lockDetail(e, at)).toEqual(["4-day lock", "opens Oct 26, 1:30 PM EDT"]);
+		expect(lockDetail(e, at, "UTC")).toEqual(["4-day lock", "opens Oct 26, 5:30 PM UTC"]);
+		const html = lockRowHtml(e, at);
+		expect(html).toContain("<strong>4-day lock</strong><span class=\"muted\"><span class=\"activity-sep\"> · </span>opens Oct 26, 1:30 PM EDT</span>");
 		expect(html).toContain('title="Opens in 3 days 23 hours. Unlock time 2026-10-26 17:30:02 UTC');
 		expect(html).not.toMatch(/in 3 days[^ ]/);
 	});
 
 	it("shows an opened encryption with how long ago it opened", () => {
 		const e = event({ createdAt: new Date(now - 4 * 86400_000 - 2 * 3600_000).toISOString(), unlockAt: new Date(now - 2 * 3600_000).toISOString() });
-		expect(eventDetail(e, now)).toEqual(["4-day lock", "opened 2 hours ago"]);
+		expect(lockDetail(e, now)).toEqual(["4-day lock", "opened 2 hours ago"]);
 	});
 
 	it("says 'no lock' for an encryption to a past round", () => {
 		const e = event({ createdAt: new Date(now).toISOString(), unlockAt: new Date(now - 86400_000).toISOString() });
-		expect(eventDetail(e, now)).toEqual(["no lock", "opened 1 day ago"]);
+		expect(lockDetail(e, now)).toEqual(["no lock", "opened 1 day ago"]);
 	});
 
-	it("describes decryptions by when they unlocked (a decrypt isn't linked to its encryption)", () => {
-		const e = event({ type: "decrypt", unlockAt: new Date(Date.UTC(2026, 9, 20, 13, 5)).toISOString() });
-		expect(eventDetail(e, now)).toEqual(["unlocked Oct 20, 9:05 AM EDT"]);
-	});
-
-	it("renders one row with a time element and source label", () => {
-		const html = eventRowHtml(event({ source: "api" }), now, "UTC");
-		expect(html).toContain("<strong>Encrypted</strong>");
-		expect(html).toContain('<span class="Label">API</span>');
+	it("renders a compact row with a time element and no source label", () => {
+		const html = lockRowHtml(event({ source: "api" }), now, { timeZone: "UTC" });
+		expect(html).toContain("<strong>3-hour 5-minute lock</strong>");
+		expect(html).not.toContain("Label");
 		expect(html).toMatch(/<time [^>]*datetime="2026-10-22T11:55:00.000Z"[^>]*>5 min ago<\/time>/);
+	});
+
+	it("adds the source label on the full list", () => {
+		expect(lockRowHtml(event({ source: "api" }), now, { source: true })).toContain('<span class="Label">API</span>');
+		expect(lockRowHtml(event({ source: "web" }), now, { source: true })).toContain('<span class="Label">website</span>');
+	});
+
+	it("never links anywhere or shows an id", () => {
+		const html = activityRowsHtml([event({ id: 987654 }), event({ id: 987655, source: "api" })], now, { source: true });
+		expect(html.match(/<li /g)).toHaveLength(2);
+		expect(html).not.toMatch(/<a\b|href=|\/m\/|987654|987655/);
 	});
 });
 

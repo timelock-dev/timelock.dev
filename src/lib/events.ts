@@ -85,13 +85,13 @@ export async function eventStats(db: EventsDb, now: number = Date.now(), days: n
 	};
 }
 
-export async function listEvents(db: EventsDb, { limit = 20, before }: { limit?: number; before?: number } = {}): Promise<FeedEvent[]> {
-	const { results } = await db
-		.prepare(
-			"SELECT id, type, source, created_at, round, unlock_at FROM events WHERE id < ? ORDER BY id DESC LIMIT ?",
-		)
-		.bind(before ?? Number.MAX_SAFE_INTEGER, limit)
-		.all<Row>();
+/** Newest first. `type` narrows the list to encryptions or decryptions. */
+export async function listEvents(db: EventsDb, { limit = 20, before, type }: { limit?: number; before?: number; type?: EventType } = {}): Promise<FeedEvent[]> {
+	const columns = "SELECT id, type, source, created_at, round, unlock_at FROM events";
+	const statement = type
+		? db.prepare(`${columns} WHERE type = ? AND id < ? ORDER BY id DESC LIMIT ?`).bind(type, before ?? Number.MAX_SAFE_INTEGER, limit)
+		: db.prepare(`${columns} WHERE id < ? ORDER BY id DESC LIMIT ?`).bind(before ?? Number.MAX_SAFE_INTEGER, limit);
+	const { results } = await statement.all<Row>();
 	return results.map((r) => ({
 		id: r.id,
 		type: r.type,

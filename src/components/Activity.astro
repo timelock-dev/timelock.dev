@@ -1,28 +1,39 @@
 ---
-import { ACTIVITY_LIMIT, activityRowsHtml, statsHtml } from "../lib/activity";
-import type { EventStats, FeedEvent } from "../lib/events";
+import { ACTIVITY_PATH, activityRowsHtml, statsHtml } from "../lib/activity";
+import type { ActivityData } from "../lib/activity-data";
 
 interface Props {
-	/** null when D1 is unavailable. */
-	events: FeedEvent[] | null;
-	stats: EventStats | null;
+	data: ActivityData;
 	now: number;
+	/** How many rows to show. */
+	limit: number;
+	/** The full list on its own page, rather than the short preview on the homepage. */
+	full?: boolean;
 }
-const { events, stats, now } = Astro.props;
+const { data, now, limit, full = false } = Astro.props;
+const { events, stats, more } = data;
+// With nothing counted, the empty message below says it all.
+const counted = stats !== null && stats.encrypted + stats.decrypted > 0;
+const EMPTY = "No messages locked yet.";
+const UNAVAILABLE = "Recent activity is unavailable right now. Encrypting and decrypting still work.";
 ---
 
-<section id="activity" aria-labelledby="activity-title" data-activity data-limit={ACTIVITY_LIMIT}>
-	<h2 class="section-title" id="activity-title">Recent activity</h2>
+<section id="activity" aria-labelledby={full ? undefined : "activity-title"} aria-label={full ? "Recent activity" : undefined} data-activity data-limit={limit} data-full={full ? "" : undefined}>
+	{!full && <h2 class="section-title" id="activity-title">Recent activity</h2>}
 	<div class="Box">
-		<div class="Box-header compact">
-			<p class="Box-title stats" data-stats set:html={stats ? statsHtml(stats) : "Activity is unavailable right now."} />
-		</div>
-		<ul class="activity-list" data-activity-list aria-live="polite" set:html={events ? activityRowsHtml(events, now, "UTC") : ""} />
+		<p class="activity-stats" data-stats hidden={!counted} set:html={stats ? statsHtml(stats) : ""} />
+		<ul class="activity-list" data-activity-list set:html={events ? activityRowsHtml(events, now, { timeZone: "UTC", source: full }) : ""} />
 		{events && <script is:inline type="application/json" data-activity-json set:html={JSON.stringify(events).replace(/</g, "\\u003c")} />}
-		<p class="blankslate" data-activity-empty hidden={events !== null && events.length > 0}>
-			{events === null ? "The activity list could not be loaded. Encrypting and decrypting still work." : "Nothing yet. Encrypt a message and it will show up here."}
-		</p>
-		<div class="Box-footer">Each row is one encryption or decryption. We record the type, the time and the unlock round. Never the message.</div>
+		<p class="blankslate" data-activity-empty data-empty-text={EMPTY} hidden={events !== null && events.length > 0}>{events === null ? UNAVAILABLE : EMPTY}</p>
+		{
+			full ? (
+				<p class="Box-footer">Each row is one locked message: how long it is locked for, when it opens and when it was locked. Never the message or a link to it.</p>
+			) : (
+				<p class="Box-footer activity-more" data-activity-more hidden={!more}>
+					<a href={ACTIVITY_PATH}>See all</a>
+				</p>
+			)
+		}
 	</div>
 </section>
 
@@ -30,9 +41,6 @@ const { events, stats, now } = Astro.props;
 	.section-title {
 		font-size: 16px;
 		margin: 0 0 8px;
-	}
-	.stats {
-		font-weight: 400;
 	}
 </style>
 
@@ -46,25 +54,34 @@ const { events, stats, now } = Astro.props;
 		const list = root.querySelector<HTMLUListElement>("[data-activity-list]")!;
 		const empty = root.querySelector<HTMLElement>("[data-activity-empty]")!;
 		const statsLine = root.querySelector<HTMLElement>("[data-stats]")!;
+		const moreLink = root.querySelector<HTMLElement>("[data-activity-more]");
 		const limit = Number(root.dataset.limit);
+		const source = root.dataset.full !== undefined;
 		let events: FeedEvent[] | null = null;
 
 		const render = () => {
 			if (!events) return;
-			list.innerHTML = activityRowsHtml(events, Date.now());
+			list.innerHTML = activityRowsHtml(events, Date.now(), { source });
 			empty.hidden = events.length > 0;
-			empty.textContent = "Nothing yet. Encrypt a message and it will show up here.";
+			empty.textContent = empty.dataset.emptyText!;
 		};
 
+		/** On failure the list on the page stays as it is. */
 		async function refresh() {
 			try {
-				const [eventsRes, statsRes] = await Promise.all([fetch(`/api/events?limit=${limit}`), fetch("/api/stats")]);
+				// These responses may be cached for a few seconds; this visitor just locked a message and should see it.
+				const fresh: RequestInit = { cache: "no-store" };
+				const [eventsRes, statsRes] = await Promise.all([fetch(`/api/events?type=encrypt&limit=${limit + 1}`, fresh), fetch("/api/stats", fresh)]);
 				if (!eventsRes.ok || !statsRes.ok) return;
-				events = ((await eventsRes.json()) as { events: FeedEvent[] }).events;
-				statsLine.innerHTML = statsHtml((await statsRes.json()) as EventStats);
+				const rows = ((await eventsRes.json()) as { events: FeedEvent[] }).events;
+				const stats = (await statsRes.json()) as EventStats;
+				events = rows.slice(0, limit);
+				statsLine.innerHTML = statsHtml(stats);
+				statsLine.hidden = stats.encrypted + stats.decrypted === 0;
+				if (moreLink) moreLink.hidden = rows.length <= limit;
 				render();
 			} catch {
-				/* keep the server-rendered list */
+				/* keep what is shown */
 			}
 		}
 
@@ -74,8 +91,10 @@ const { events, stats, now } = Astro.props;
 			events = null;
 		}
 		render();
-		// No polling: the server renders fresh data on page load, and we refetch only after this visitor's own encrypt/decrypt.
+		// No polling. The server renders the list on page load; it is fetched again only after this visitor locks a
+		// message, or once if the server could not load it.
 		window.addEventListener(EVENT_REPORTED, refresh);
+		if (!events) void refresh();
 		setInterval(render, 15_000); // re-renders relative times locally; no network
 	}
 </script>

@@ -108,7 +108,7 @@ export async function getMessage(db: EventsDb, id: string): Promise<StoredMessag
 	return toMessage(row);
 }
 
-/** A browser finished decrypting this message. Counts it and records the decrypt event for recent activity. */
+/** A browser finished decrypting this message. Counts it and records the decrypt event, which is counted in the stats. */
 export async function markOpened(db: EventsDb, message: StoredMessage, now: number): Promise<void> {
 	await db.prepare("UPDATE messages SET opens = opens + 1, opened_at = COALESCE(opened_at, ?) WHERE id = ?").bind(now, message.id).run();
 	await recordEvent(db, { type: "decrypt", source: "web", round: message.round, unlockAt: message.unlockAt, createdAt: now });

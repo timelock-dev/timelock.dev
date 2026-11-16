@@ -1,0 +1,27 @@
+---
+import { env } from "cloudflare:workers";
+import Activity from "../components/Activity.astro";
+import Base from "../layouts/Base.astro";
+import { ACTIVITY_FULL } from "../lib/activity";
+import { loadActivity } from "../lib/activity-data";
+
+export const prerender = false;
+
+const now = Date.now();
+const data = await loadActivity(env.DB, ACTIVITY_FULL, now);
+Astro.response.headers.set("Cache-Control", "no-cache");
+---
+
+<Base title="Recent activity · timelock.dev" description={`The latest ${ACTIVITY_FULL} messages locked on timelock.dev: how long each is locked for and when it opens. No messages and no links.`}>
+	<section class="hero">
+		<div class="container narrow">
+			<h1>Recent activity</h1>
+			<p class="lead">The latest {ACTIVITY_FULL} messages locked here. No messages, no links.</p>
+		</div>
+	</section>
+
+	<div class="container narrow">
+		<Activity data={data} now={now} limit={ACTIVITY_FULL} full />
+		<p class="after-card"><a href="/">Lock your own message</a></p>
+	</div>
+</Base>
