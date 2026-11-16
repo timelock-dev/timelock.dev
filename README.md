@@ -80,6 +80,8 @@ src/lib/time.ts       duration parsing/formatting, local + UTC formatting, relat
 src/lib/api.ts        request handlers for every endpoint (framework-free, unit-tested)
 src/lib/events.ts     D1 queries for recent activity and 30-day stats
 src/lib/messages.ts   D1 queries for hosted messages (by id only; nothing lists them)
+src/lib/message-id.ts    the id of a hosted message, derived from its encrypted text; shared by server and browser
+src/scripts/find-page.ts the Decrypt page's lookup: does this pasted encrypted text have a message page?
 src/lib/message-view.ts  countdown digits, link-preview text and other rendering for /m/<id>, shared by server and browser
 src/scripts/message.ts   the /m/<id> page: countdown on the server clock, then in-browser decryption
 src/scripts/handoff.ts   passes encrypted text from the encrypt result to /decrypt, and spots pasted share links
