@@ -1,0 +1,27 @@
+---
+import DecryptForm from "../components/DecryptForm.astro";
+import Base from "../layouts/Base.astro";
+import { legacyDecrypt } from "../lib/api";
+import { ApiError, errorText } from "../lib/http";
+import { deps } from "../lib/server";
+
+export const prerender = false;
+
+// The original endpoint shares this address: POST /decrypt takes raw encrypted bytes and returns the raw message.
+const { method } = Astro.request;
+if (method === "POST") return legacyDecrypt(Astro.request, deps(Astro));
+if (method !== "GET" && method !== "HEAD") return errorText(new ApiError(405, "method_not_allowed", "Use GET for the page or POST to decrypt."));
+---
+
+<Base title="Decrypt a message · timelock.dev" description="Paste timelock-encrypted text or a timelock.dev link to read the message. It opens in your browser once its unlock time has passed.">
+	<section class="hero">
+		<div class="container narrow">
+			<h1>Decrypt a message</h1>
+			<p class="lead">Paste the encrypted text or a timelock.dev link. It opens once its unlock time has passed.</p>
+		</div>
+	</section>
+
+	<div class="container narrow">
+		<DecryptForm />
+	</div>
+</Base>

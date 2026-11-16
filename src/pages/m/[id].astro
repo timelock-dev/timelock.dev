@@ -1,9 +1,8 @@
 ---
 import { env } from "cloudflare:workers";
-import Icon from "../../components/Icon.astro";
 import Base from "../../layouts/Base.astro";
 import { messageHeaders } from "../../lib/http";
-import { countdownSegments, formatUtcShort, lockedEarlierText, lockProgress, messageMeta, timerHtml } from "../../lib/message-view";
+import { countdownSegments, formatUtcShort, lockedEarlierText, messageMeta, timerHtml } from "../../lib/message-view";
 import { getMessage, type StoredMessage } from "../../lib/messages";
 import { formatUtc } from "../../lib/time";
 
@@ -35,42 +34,27 @@ const iso = (ms: number) => new Date(ms).toISOString();
 ---
 
 <Base title={meta.title} description={meta.description} noindex={!message}>
-	<div class="container message-page">
+	<div class="container narrow message-page">
 		{
 			message ? (
 				<div
 					data-message
 					data-id={message.id}
 					data-unlock-at={message.unlockAt}
-					data-created-at={message.createdAt}
-					data-round={message.round}
 					data-server-now={now}
 					data-state={unlocked ? "opening" : "locked"}
 				>
-					<section class="stage" aria-labelledby="stage-title">
-						<p class="stage-pill" data-pill-locked hidden={unlocked}>
-							<Icon name="lock" />
-							<span>Locked</span>
-						</p>
-						<p class="stage-pill is-open" data-pill-open hidden={!unlocked}>
-							<Icon name="unlock" />
-							<span>Unlocked</span>
-						</p>
-
+					<section class="stage" aria-label={unlocked ? "Unlocked message" : "Locked message"}>
 						<div data-locked hidden={unlocked}>
-							<h1 class="stage-title" id="stage-title">This message opens in</h1>
+							<h1 class="stage-title">This message opens in</h1>
 							<div class="timer" data-timer role="timer" set:html={timerHtml(countdownSegments((message.unlockAt - now) / 1000))} />
 							<p class="stage-when">
 								<time data-local datetime={iso(message.unlockAt)}>{formatUtcShort(message.unlockAt)}</time>
 							</p>
-							<div class="stage-progress" aria-hidden="true">
-								<span data-progress style={`width:${(lockProgress(message.createdAt, message.unlockAt, now) * 100).toFixed(2)}%`} />
-							</div>
-							<p class="stage-meta" data-rounds>drand round #{message.round.toLocaleString("en-US")}</p>
 						</div>
 
 						<div data-open hidden={!unlocked}>
-							<h2 class="stage-title">The message</h2>
+							<h1 class="stage-title">The message</h1>
 							<div class="reveal" data-reveal hidden>
 								<pre data-plaintext data-size="lg" />
 							</div>
@@ -78,7 +62,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 							<noscript>
 								<p class="stage-status">Turn on JavaScript to decrypt here, or open the encrypted text below with any tlock tool.</p>
 							</noscript>
-							<p class="stage-when">
+							<p class="stage-when is-small">
 								Unlocked <time data-local datetime={iso(message.unlockAt)}>{formatUtcShort(message.unlockAt)}</time>
 							</p>
 							<p class="stage-meta">
@@ -88,35 +72,17 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 						<div class="stage-actions">
 							<button class="btn big" type="button" data-copy-link>Copy link</button>
-							<button class="btn big ghost" type="button" data-share hidden>Share</button>
-							<button class="btn big ghost" type="button" data-copy-message hidden>Copy message</button>
-							<button class="btn big ghost" type="button" data-download-message hidden>Download file</button>
+							<button class="btn big secondary" type="button" data-share hidden>Share</button>
+							<button class="btn big secondary" type="button" data-copy-message hidden>Copy message</button>
+							<button class="btn big secondary" type="button" data-download-message hidden>Download file</button>
 						</div>
 					</section>
 
-					<ul class="trust">
-						<li>
-							<Icon name="lock" />
-							<span>
-								<strong>Nobody can open it early.</strong> The key does not exist until the <a href="https://drand.love/">drand</a> network publishes
-								it at the unlock time.
-							</span>
-						</li>
-						<li>
-							<Icon name="shield" />
-							<span>
-								<strong>We store the encrypted text, never the message.</strong> It is decrypted here in your browser.
-							</span>
-						</li>
-						<li>
-							<Icon name="check" />
-							<span>
-								<strong>Not listed on our site.</strong> We don't link to this page anywhere. People find it only through the link.
-							</span>
-						</li>
-					</ul>
+					<p class="stage-note" data-locked-note hidden={unlocked}>
+						Nobody can open it early, not even the sender. <a href="/how-it-works">How it works</a>
+					</p>
 
-					<details class="Box proof">
+					<details class="proof">
 						<summary>Proof and encrypted text</summary>
 						<div class="proof-body">
 							<dl class="proof-facts">
@@ -145,25 +111,20 @@ const iso = (ms: number) => new Date(ms).toISOString();
 							</div>
 							<p class="hint">
 								“Locked” is when our server received the encrypted text. It has not changed since: the SHA-256 above is the hash of the downloaded
-								file. To prove the date without trusting us, post that hash somewhere public today. After the unlock time, the file also opens with
-								<a href="/how-it-works#offline">other tlock tools</a>.
+								file. To prove the date without trusting us, post that hash somewhere public today. We store the encrypted text, never the message,
+								and it also opens with <a href="/how-it-works#offline">other tlock tools</a> after the unlock time.
 							</p>
 						</div>
 					</details>
 
 					<p class="message-cta">
-						<a class="btn big" href="/">Lock your own message</a>
-						<a href="/how-it-works">How it works</a>
+						<a href="/">Lock your own message</a>
 					</p>
 				</div>
 			) : (
 				<section class="stage">
-					<p class="stage-pill is-missing">
-						<Icon name="question" />
-						<span>{failed ? "Unavailable" : "Not found"}</span>
-					</p>
 					<h1 class="stage-title is-large">{failed ? "This message can't be loaded right now." : "There is no message at this link."}</h1>
-					<p class="stage-when">{failed ? "Try again in a moment." : "Check that you have the whole link."}</p>
+					<p class="stage-when is-small">{failed ? "Try again in a moment." : "Check that you have the whole link."}</p>
 					<div class="stage-actions">
 						<a class="btn big" href="/">Lock your own message</a>
 					</div>

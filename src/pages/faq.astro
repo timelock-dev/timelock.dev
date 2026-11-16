@@ -71,12 +71,12 @@ const toc = [
 
 			<h2 id="unlock-time">Can I see the unlock time without decrypting?</h2>
 			<p>
-				Yes. The round is in the header of the encrypted text, and anyone can read it. Paste it into <a href="/#decrypt">Decrypt</a>, and the
+				Yes. The round is in the header of the encrypted text, and anyone can read it. Paste it into <a href="/decrypt">Decrypt</a>, and the
 				site shows the unlock time right away. You can't hide it.
 			</p>
 
 			<h2 id="notes">What are the lines above the encrypted block?</h2>
-			<p>Optional plain notes. When you encrypt, two checkboxes add them, and both are on by default:</p>
+			<p>Optional plain notes. When you copy or download the encrypted text, "Include unlock notes" adds them. It is on by default:</p>
 			<pre><code>Unlock at https://timelock.dev
 Unlocks: Sat, Nov 21, 2026 9:08 AM EST (2026-11-21 14:08:27 UTC)
 
@@ -92,8 +92,8 @@ Unlocks: Sat, Nov 21, 2026 9:08 AM EST (2026-11-21 14:08:27 UTC)
 			<p>
 				The block, yes. <code>dee</code>, <code>tle</code> and other tlock tools open it, and this site opens theirs. But
 				<strong>tools other than this site need just the BEGIN…END block.</strong> We tested <code>dee</code>, Go <code>tle</code> and
-				<code>age</code>, Rust <code>tlock_age</code> and <code>tlock-js</code>, and all of them reject any text before or after the block. Use
-				<strong>Copy block only</strong>, turn the notes off, or strip them:
+				<code>age</code>, Rust <code>tlock_age</code> and <code>tlock-js</code>, and all of them reject any text before or after the block. Turn
+				<strong>Include unlock notes</strong> off before you copy, or strip them:
 			</p>
 			<pre><code>sed -n '/^-----BEGIN AGE/,/^-----END AGE/p' message.txt | dee crypt --decrypt</code></pre>
 			<p>This site and the <a href="/docs#decrypt">API</a> accept the text with or without notes.</p>

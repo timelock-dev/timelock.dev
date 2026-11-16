@@ -73,20 +73,20 @@ describe("decrypt panel with notes", () => {
 	const notes = noteLines(UNLOCK, { instructions: true, unlockTime: true });
 
 	it("says how many lines were ignored", () => {
-		const html = decryptStatePanelHtml(UNLOCK, ROUND, UNLOCK + 1000, notes);
+		const html = decryptStatePanelHtml(UNLOCK, UNLOCK + 1000, notes);
 		expect(html).toContain("2 lines of plain text outside the encrypted block were ignored.");
 		expect(html).not.toContain("warn");
 	});
 
 	it("warns when the note's time doesn't match the block", () => {
 		const forged = noteLines(UNLOCK - 86_400_000, { instructions: false, unlockTime: true });
-		const html = decryptStatePanelHtml(UNLOCK, ROUND, UNLOCK - 5000, forged);
+		const html = decryptStatePanelHtml(UNLOCK, UNLOCK - 5000, forged);
 		expect(html).toContain("1 line of plain text outside the encrypted block was ignored.");
 		expect(html).toContain(`The note says ${formatUtc(UNLOCK - 86_400_000)}, but the encrypted block says ${formatUtc(UNLOCK)}.`);
 	});
 
 	it("never puts note text into the page", () => {
-		const html = decryptStatePanelHtml(UNLOCK, ROUND, UNLOCK + 1000, ["<img src=x onerror=alert(1)>"]);
+		const html = decryptStatePanelHtml(UNLOCK, UNLOCK + 1000, ["<img src=x onerror=alert(1)>"]);
 		expect(html).not.toContain("<img");
 	});
 });

@@ -17,6 +17,8 @@ interface Props {
 const { title, description, noindex = false, jsonLd } = Astro.props;
 const path = Astro.url.pathname.replace(/(\.html)?\/?$/, "") || "/";
 const nav: { href: string; label: string; icon: IconName }[] = [
+	{ href: "/", label: "Encrypt", icon: "lock" },
+	{ href: "/decrypt", label: "Decrypt", icon: "unlock" },
 	{ href: "/how-it-works", label: "How it works", icon: "book" },
 	{ href: "/faq", label: "FAQ", icon: "question" },
 	{ href: "/docs", label: "API", icon: "code" },
@@ -207,7 +209,7 @@ const ogImage = new URL("/og.png", Astro.site);
 	.menu-panel :global(.octicon) {
 		color: var(--muted);
 	}
-	@media (max-width: 767px) {
+	@media (max-width: 899px) {
 		.header-nav {
 			display: none;
 		}

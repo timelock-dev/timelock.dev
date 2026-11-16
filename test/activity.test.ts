@@ -90,21 +90,21 @@ describe("lock status panels", async () => {
 	const text = (html: string) => html.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
 
 	it("summarizes an encrypted message in one sentence", () => {
-		expect(text(encryptedPanelHtml(unlock, 34155234, unlock - (29 * 86400 + 23 * 3600) * 1000))).toBe(
-			"|Your message is encrypted|It can be opened on Sat, Nov 21, 2026 at 8:51 AM EST (in 29 days 23 hours).|2026-11-21 13:51:06 UTC · drand round #34,155,234|",
+		expect(text(encryptedPanelHtml(unlock, unlock - (29 * 86400 + 23 * 3600) * 1000))).toBe(
+			"|Your message is encrypted|It can be opened on Sat, Nov 21, 2026 at 8:51 AM EST (in 29 days 23 hours).|",
 		);
-		expect(text(encryptedPanelHtml(unlock, 34155234, unlock + 1000))).toContain("It can be opened now.");
+		expect(text(encryptedPanelHtml(unlock, unlock + 1000))).toContain("It can be opened now.");
 	});
 
-	it("shows a locked message with local time, UTC, countdown and round on separate lines", () => {
-		const html = decryptStatePanelHtml(unlock, 34155234, unlock - (2 * 3600 + 15 * 60) * 1000);
+	it("shows a locked message with its local unlock time and the time left on one line", () => {
+		const html = decryptStatePanelHtml(unlock, unlock - (2 * 3600 + 15 * 60) * 1000);
 		expect(html).toContain("is-locked");
-		expect(text(html)).toBe("|Still locked|Opens Sat, Nov 21, 2026 at 8:51 AM EST|2026-11-21 13:51:06 UTC|2 hours 15 minutes to go|drand round #34,155,234|");
+		expect(text(html)).toBe("|Still locked|Opens Sat, Nov 21, 2026 at 8:51 AM EST, in 2 hours 15 minutes.|");
 	});
 
 	it("shows an unlocked message as ready", () => {
-		const html = decryptStatePanelHtml(unlock, 34155234, unlock + 3 * 86400_000);
+		const html = decryptStatePanelHtml(unlock, unlock + 3 * 86400_000);
 		expect(html).toContain("is-open");
-		expect(text(html)).toContain("Ready to decrypt|Unlocked Sat, Nov 21, 2026 at 8:51 AM EST (3 days ago)");
+		expect(text(html)).toBe("|Ready to decrypt|Unlocked Sat, Nov 21, 2026 at 8:51 AM EST (3 days ago).|");
 	});
 });

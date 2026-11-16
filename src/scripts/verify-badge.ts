@@ -4,10 +4,6 @@ import { verifyDrand, type RelayCheck, type Verification } from "../lib/verify";
 
 const RECHECK_MS = 60_000;
 
-const ago = (ms: number) => {
-	const s = Math.max(0, Math.round(ms / 1000));
-	return s < 2 ? "just now" : s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)} min ago` : `${Math.floor(s / 3600)} h ago`;
-};
 const host = (relay: string) => new URL(relay).host;
 const mark = (ok: boolean, label: string) => `<span class="${ok ? "ok" : "bad"}">${ok ? "✓" : "✗"} ${label}</span>`;
 
@@ -31,7 +27,7 @@ export function startVerifyBadge(): void {
 		const passed = last.relays.filter((r) => r.ok).length;
 		const text = $("[data-verify-text]");
 		if (last.status === "verified") {
-			text.innerHTML = `<span class="verify-long">drand quicknet </span>verified<span class="verify-mid"> · round #${last.round!.toLocaleString("en-US")}</span><span class="verify-long"> · ${ago(Date.now() - last.checkedAt)}</span>`;
+			text.innerHTML = `<span class="verify-long">drand quicknet </span>verified<span class="verify-mid"> · round #${last.round!.toLocaleString("en-US")}</span>`;
 		} else if (last.status === "warning") {
 			text.innerHTML = `drand: ${passed} of ${last.relays.length} relays<span class="verify-mid"> passed</span>`;
 		} else {
@@ -66,7 +62,6 @@ export function startVerifyBadge(): void {
 	}
 
 	check();
-	setInterval(renderBadge, 1000);
 	setInterval(check, RECHECK_MS);
 	document.addEventListener("click", (e) => {
 		if (root.open && !root.contains(e.target as Node)) root.open = false;

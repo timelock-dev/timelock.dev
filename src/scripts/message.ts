@@ -1,5 +1,5 @@
-import { createDrandClient, currentRound, DrandUnavailableError } from "../lib/drand";
-import { countdownSegments, lockProgress, timerHtml } from "../lib/message-view";
+import { createDrandClient, DrandUnavailableError } from "../lib/drand";
+import { countdownSegments, timerHtml, timerShape } from "../lib/message-view";
 import { formatCountdown, formatFriendly, formatSpan } from "../lib/time";
 
 const OPENED_KEY = "timelock:opened";
@@ -45,16 +45,12 @@ export function startMessagePage(root: HTMLElement): void {
 	const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
 	const id = root.dataset.id!;
 	const unlockAt = Number(root.dataset.unlockAt);
-	const createdAt = Number(root.dataset.createdAt);
-	const round = Number(root.dataset.round);
 	// Count down on the server's clock, so a wrong device clock can't show the wrong time left.
 	const skew = Number(root.dataset.serverNow) - Date.now();
 	const now = () => Date.now() + (Number.isFinite(skew) ? skew : 0);
 
 	const ciphertext = $<HTMLTextAreaElement>("[data-ciphertext]").value;
 	const timer = $("[data-timer]");
-	const progress = $("[data-progress]");
-	const rounds = $("[data-rounds]");
 	const status = $("[data-status]");
 	const plaintextBox = $("[data-plaintext]");
 	let state: "locked" | "opening" | "open" | "failed" = "locked";
@@ -74,12 +70,18 @@ export function startMessagePage(root: HTMLElement): void {
 			void open();
 			return;
 		}
-		const html = timerHtml(countdownSegments(left));
-		if (html !== shownTimer) timer.innerHTML = shownTimer = html;
-		timer.setAttribute("aria-label", `${formatSpan(left)} left`);
-		progress.style.width = `${(lockProgress(createdAt, unlockAt, t) * 100).toFixed(2)}%`;
-		const roundsLeft = Math.max(0, round - currentRound(t));
-		rounds.textContent = `drand round #${round.toLocaleString("en-US")} · ${roundsLeft.toLocaleString("en-US")} ${roundsLeft === 1 ? "round" : "rounds"} to go`;
+		const segments = countdownSegments(left);
+		const shape = timerShape(segments);
+		if (shape !== shownTimer) {
+			timer.innerHTML = timerHtml(segments);
+			shownTimer = shape;
+		} else {
+			timer.querySelectorAll(".timer-num").forEach((el, i) => {
+				if (el.textContent !== segments[i].value) el.textContent = segments[i].value;
+			});
+		}
+		const label = `${formatSpan(left)} left`;
+		if (timer.getAttribute("aria-label") !== label) timer.setAttribute("aria-label", label);
 		document.title = `${formatCountdown(Math.ceil(left))} · Locked message · timelock.dev`;
 	}
 
@@ -112,8 +114,7 @@ export function startMessagePage(root: HTMLElement): void {
 		root.dataset.state = "opening";
 		$("[data-locked]").hidden = true;
 		$("[data-open]").hidden = false;
-		$("[data-pill-locked]").hidden = true;
-		$("[data-pill-open]").hidden = false;
+		$("[data-locked-note]").hidden = true;
 		document.title = "Unlocked message · timelock.dev";
 		status.hidden = false;
 		status.textContent = "Getting the key from drand…";

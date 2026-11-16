@@ -5,7 +5,7 @@ import { createDrandClient } from "./drand";
 
 const drand = createDrandClient();
 
-export function deps(context: APIContext): Deps {
+export function deps(context: Pick<APIContext, "locals">): Deps {
 	return {
 		drand,
 		db: env.DB,

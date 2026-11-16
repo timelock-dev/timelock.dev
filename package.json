@@ -24,7 +24,8 @@
 		"deploy": "npm run db:migrate:remote && wrangler deploy",
 		"spellcheck": "cspell --no-progress \"src/**/*.{astro,ts,css}\" \"test/**/*.ts\" \"scripts/*.mjs\" \"*.md\" \"migrations/*.sql\"",
 		"linkcheck": "linkinator http://127.0.0.1:4328/ --recurse --check-fragments",
-		"check:html": "node scripts/check-html.mjs"
+		"check:html": "node scripts/check-html.mjs",
+		"check:routes": "node scripts/check-routes.mjs"
 	},
 	"dependencies": {
 		"@astrojs/cloudflare": "^14.4.2",

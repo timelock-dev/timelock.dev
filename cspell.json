@@ -55,6 +55,7 @@
 		"nofollow",
 		"noarchive",
 		"ratelimits",
-		"cqw"
+		"cqw",
+		"timelocked"
 	]
 }

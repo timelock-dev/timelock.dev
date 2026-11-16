@@ -33,23 +33,25 @@ export function countdownSegments(secondsLeft: number): Segment[] {
 }
 
 /**
- * Markup for the big timer. `--k` is the row's width in ems (digits plus gaps), so CSS can size the digits to fill the
- * available width on any screen: font-size = container width / k.
+ * Markup for the timer: digit groups with a colon between them, such as 03:54 or 02:04:12:55, and each unit's name under
+ * its group. `--k` is the row's width in ems (digits plus colons), so CSS can shrink the digits to fit a narrow screen:
+ * font-size = container width / k.
  */
 export function timerHtml(segments: Segment[]): string {
 	const chars = segments.reduce((n, s) => n + s.value.length, 0);
-	const k = chars * 0.62 + (segments.length - 1) * 0.34;
+	const k = chars * 0.62 + (segments.length - 1) * 0.5;
 	const groups = segments
 		.map((s) => `<span class="timer-seg"><span class="timer-num">${s.value}</span><span class="timer-label">${s.label}</span></span>`)
-		.join("");
+		.join('<span class="timer-colon" aria-hidden="true">:</span>');
 	return `<span class="timer-row" style="--k:${k.toFixed(2)}">${groups}</span>`;
 }
 
-/** How far through the lock we are, 0 to 1. */
-export function lockProgress(createdAt: number, unlockAt: number, now: number): number {
-	const total = unlockAt - createdAt;
-	if (total <= 0) return 1;
-	return Math.min(1, Math.max(0, (now - createdAt) / total));
+/**
+ * Identifies the timer's layout: the units shown and how many digits each has. While it stays the same, only the digits
+ * need updating, which keeps the colons' blink running instead of restarting it every second.
+ */
+export function timerShape(segments: Segment[]): string {
+	return segments.map((s) => `${s.label}${s.value.length}`).join(" ");
 }
 
 /** "Nov 21, 2026, 2:08 PM UTC" */

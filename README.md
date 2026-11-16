@@ -6,11 +6,11 @@ uses [tlock](https://eprint.iacr.org/2023/189) timelock encryption on the [drand
 This repository is the site and API, deployed as the `timelock-dev` Cloudflare Worker. It started as a fork of Thibault Meunier's Rust
 [tlock-worker](https://github.com/thibmeu/tlock-worker) and is now an Astro (TypeScript) app.
 
-- **Website:** encrypts and decrypts in the browser with [tlock-js](https://github.com/drand/tlock-js). Messages are not sent to the server.
+- **Website:** encrypts on the homepage and decrypts at [`/decrypt`](https://timelock.dev/decrypt), both in the browser with [tlock-js](https://github.com/drand/tlock-js). Messages are not sent to the server.
 - **Share links:** the website uploads the encrypted block (never the message) and returns a page at `/m/<uuid>` with a
   live countdown. At the unlock time the page decrypts in the reader's browser. Also available as `POST /api/messages`.
 - **JSON API:** `POST /api/encrypt` and `POST /api/decrypt` (server-side). Documentation is at [`/docs`](https://timelock.dev/docs).
-- **Original endpoints:** `POST /encrypt/:round` and `POST /decrypt` still accept and return raw bytes, as before.
+- **Original endpoints:** `POST /encrypt/:round` and `POST /decrypt` still accept and return raw bytes, as before. (`GET /decrypt` is the Decrypt page.)
 - **Recent activity:** the homepage lists the last 10 events and 30-day counts from an anonymous event log in Cloudflare D1 (type, timestamps,
   round). The same data is at `GET /api/events` and `GET /api/stats`.
 - **Transparency:** [`/how-it-works`](https://timelock.dev/how-it-works) covers the scheme, the network, what the server sees and the limitations.
@@ -42,6 +42,7 @@ npm run dev                 # http://localhost:4327, runs on workerd with local 
 | `npm run spellcheck` | cspell over sources and docs (`cspell.json` holds the project dictionary) |
 | `npm run linkcheck` | linkinator against a running `npm run preview`, including `#fragment` targets |
 | `npm run check:html` | scans every page of a running `npm run preview` for words glued to numbers, links or code |
+| `npm run check:routes` | checks a running `npm run preview`: the Decrypt page and the original `POST /decrypt` share one address, and the homepage links to it |
 
 ## Deploy
 
@@ -81,9 +82,10 @@ src/lib/events.ts     D1 queries for recent activity and 30-day stats
 src/lib/messages.ts   D1 queries for hosted messages (by id only; nothing lists them)
 src/lib/message-view.ts  countdown digits, link-preview text and other rendering for /m/<id>, shared by server and browser
 src/scripts/message.ts   the /m/<id> page: countdown on the server clock, then in-browser decryption
+src/scripts/handoff.ts   passes encrypted text from the encrypt result to /decrypt, and spots pasted share links
 src/lib/activity.ts   stats sentence and activity rows, shared by the server render and the browser refresh
 src/lib/unlock.ts     unlock-time picker logic: duration and date validation, calendar grid, time zones
-src/pages/            Astro pages (the homepage is server-rendered, the rest prerendered) and thin endpoint wrappers
+src/pages/            Astro pages (the homepage, /decrypt and /m/<id> are server-rendered, the rest prerendered) and thin endpoint wrappers
 src/components/       encrypt form (unlock-time picker), decrypt form, recent activity, logo
 migrations/           D1 schema
 patches/              tlock-js patch: Web Crypto randomness for workerd, no beacon logging, final age chunk for empty messages
