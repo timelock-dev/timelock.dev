@@ -22,6 +22,8 @@ if (env.DB) {
 } else {
 	failed = true;
 }
+// A derived id can also find a message hosted earlier under a random id. Its page stays at the address it was shared with.
+if (message && message.id !== id) return Astro.redirect(`/m/${message.id}`, 302);
 if (!message) Astro.response.status = failed ? 503 : 404;
 // Also set by the middleware. Repeated here so this page can never be cached or leak its address as a referrer.
 for (const [k, v] of Object.entries(messageHeaders("/m/") ?? {})) Astro.response.headers.set(k, v);

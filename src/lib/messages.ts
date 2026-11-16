@@ -1,11 +1,13 @@
 import { recordEvent, type EventsDb, type EventSource } from "./events";
+import { HASH_ID, MESSAGE_ID, UUID_ID, messageId, sha256Hex } from "./message-id";
+import { canonicalArmor } from "./tlock";
 
-/** Lowercase UUID v4, as produced by crypto.randomUUID(). */
-export const MESSAGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export { MESSAGE_ID, sha256Hex };
 
 const DAY_MS = 86400_000;
 
 export interface StoredMessage {
+	/** Derived from the encrypted text (see `messageId`), or a random UUID for messages hosted before that. */
 	id: string;
 	/** Armored age block only. Never plaintext, never notes. */
 	ciphertext: string;
@@ -24,51 +26,86 @@ interface Row {
 	unlock_at: number;
 	created_at: number;
 	opened_at: number | null;
+	content_id: string | null;
 }
+
+const COLUMNS = "id, ciphertext, sha256, round, unlock_at, created_at, opened_at, content_id";
+
+const toMessage = (r: Row): StoredMessage => ({
+	id: r.id,
+	ciphertext: r.ciphertext,
+	sha256: r.sha256,
+	round: Number(r.round),
+	unlockAt: Number(r.unlock_at),
+	createdAt: Number(r.created_at),
+	openedAt: r.opened_at === null ? null : Number(r.opened_at),
+});
 
 export class DailyLimitError extends Error {}
 
-export async function sha256Hex(text: string): Promise<string> {
-	const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
-	return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 /**
- * Stores an armored block under a new random id. The caller has already validated `ciphertext`.
+ * Stores a canonical armored block under the id derived from it. The caller has already validated `ciphertext`.
+ * A block that is already stored is not stored again: its existing message comes back with `created: false`.
  * Website uploads also count as the encryption event for recent activity (`recordEncrypt`).
  */
 export async function createMessage(
 	db: EventsDb,
 	m: { ciphertext: string; round: number; unlockAt: number; source: EventSource; createdAt: number; dailyLimit: number; recordEncrypt: boolean },
-): Promise<StoredMessage> {
+): Promise<{ message: StoredMessage; created: boolean }> {
+	const id = await messageId(m.ciphertext);
 	const day = Math.floor(m.createdAt / DAY_MS);
 	const { results } = await db.prepare("SELECT hosted FROM daily_stats WHERE day = ?").bind(day).all<{ hosted: number }>();
 	if (Number(results[0]?.hosted ?? 0) >= m.dailyLimit) throw new DailyLimitError();
 
-	const id = crypto.randomUUID();
 	const sha256 = await sha256Hex(m.ciphertext);
-	await db
-		.prepare("INSERT INTO messages (id, ciphertext, sha256, round, unlock_at, created_at, source) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	const inserted = await db
+		.prepare("INSERT INTO messages (id, ciphertext, sha256, round, unlock_at, created_at, source) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING RETURNING id")
 		.bind(id, m.ciphertext, sha256, m.round, m.unlockAt, m.createdAt, m.source)
-		.run();
+		.all<{ id: string }>();
+	if (!inserted.results.length) {
+		// This block is already stored: callers look first, so this is the same block arriving twice at once.
+		const existing = await getMessage(db, id);
+		if (existing) return { message: existing, created: false };
+		throw new Error("failed to store the message");
+	}
 	await db
 		.prepare("INSERT INTO daily_stats (day, hosted) VALUES (?, 1) ON CONFLICT (day) DO UPDATE SET hosted = hosted + 1")
 		.bind(day)
 		.run();
 	if (m.recordEncrypt) await recordEvent(db, { type: "encrypt", source: m.source, round: m.round, unlockAt: m.unlockAt, createdAt: m.createdAt });
-	return { id, ciphertext: m.ciphertext, sha256, round: m.round, unlockAt: m.unlockAt, createdAt: m.createdAt, openedAt: null };
+	return { message: { id, ciphertext: m.ciphertext, sha256, round: m.round, unlockAt: m.unlockAt, createdAt: m.createdAt, openedAt: null }, created: true };
 }
 
-/** One row by primary key. There is deliberately no query that lists messages. */
+async function firstRow(db: EventsDb, where: string, value: string): Promise<Row | null> {
+	const { results } = await db.prepare(`SELECT ${COLUMNS} FROM messages WHERE ${where}`).bind(value).all<Row>();
+	return results[0] ?? null;
+}
+
+/**
+ * Records the derived id of a message hosted under a random UUID, so it is found from its encrypted text from now on.
+ * The migration could not do this (SQLite has no SHA-256), so it happens the first time such a message is read.
+ */
+async function rememberContentId(db: EventsDb, row: Row): Promise<void> {
+	try {
+		const block = canonicalArmor(row.ciphertext);
+		if (!block) return;
+		await db.prepare("UPDATE messages SET content_id = ? WHERE id = ? AND content_id IS NULL").bind(await messageId(block), row.id).run();
+	} catch (err) {
+		console.error("failed to record a message's derived id", err);
+	}
+}
+
+/**
+ * One message by its id. A derived id also finds a message hosted earlier under a random UUID, once its derived id
+ * has been recorded. There is deliberately no query that lists messages.
+ */
 export async function getMessage(db: EventsDb, id: string): Promise<StoredMessage | null> {
 	if (!MESSAGE_ID.test(id)) return null;
-	const { results } = await db
-		.prepare("SELECT id, ciphertext, sha256, round, unlock_at, created_at, opened_at FROM messages WHERE id = ?")
-		.bind(id)
-		.all<Row>();
-	const r = results[0];
-	if (!r) return null;
-	return { id: r.id, ciphertext: r.ciphertext, sha256: r.sha256, round: Number(r.round), unlockAt: Number(r.unlock_at), createdAt: Number(r.created_at), openedAt: r.opened_at === null ? null : Number(r.opened_at) };
+	let row = await firstRow(db, "id = ?", id);
+	if (!row && HASH_ID.test(id)) row = await firstRow(db, "content_id = ? ORDER BY created_at, id LIMIT 1", id);
+	if (!row) return null;
+	if (row.content_id === null && UUID_ID.test(row.id)) await rememberContentId(db, row);
+	return toMessage(row);
 }
 
 /** A browser finished decrypting this message. Counts it and records the decrypt event for recent activity. */

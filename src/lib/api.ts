@@ -2,7 +2,8 @@ import type { ChainClient } from "drand-client";
 import { Buffer } from "tlock-js";
 import { DrandUnavailableError, QUICKNET, currentRound, roundForTime, roundTime } from "./drand";
 import { eventStats, listEvents, recordEvent, type EventsDb, type EventSource, type EventType } from "./events";
-import { DailyLimitError, MESSAGE_ID, createMessage, getMessage, markOpened, type StoredMessage } from "./messages";
+import { MESSAGE_ID, messageId } from "./message-id";
+import { DailyLimitError, createMessage, getMessage, markOpened, type StoredMessage } from "./messages";
 import { ApiError, errorJson, errorText, json, readBody, readJson } from "./http";
 import { noteLines, withNotes, type NoteOptions } from "./notes";
 import { parseDuration, parseTimestamp } from "./time";
@@ -11,9 +12,9 @@ import {
 	TooEarlyError,
 	UnsupportedChainError,
 	bytesToBinaryString,
+	canonicalArmor,
 	decrypt,
 	encrypt,
-	extractArmor,
 	inspectCiphertext,
 } from "./tlock";
 
@@ -283,7 +284,7 @@ export async function getEvents(url: URL, deps: Pick<Deps, "db">): Promise<Respo
 	}
 }
 
-/** A strictly formatted armored block: nothing but base64 between the BEGIN and END lines. */
+/** A strictly formatted armored block: nothing but base64 between the BEGIN and END lines. `canonicalArmor` produces exactly this. */
 const ARMOR_BLOCK = /^-----BEGIN AGE ENCRYPTED FILE-----\n(?:[A-Za-z0-9+/]{1,64}={0,2}\n)+-----END AGE ENCRYPTED FILE-----\n$/;
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -301,7 +302,8 @@ const sameOrigin = (request: Request) => request.headers.get("Origin") === new U
 
 /**
  * POST /api/messages — stores an already-encrypted block and returns its link.
- * Only the armored block is kept: notes around it are dropped, so no plain text is ever stored.
+ * Only the armored block is kept, in its canonical form: notes around it are dropped, so no plain text is ever stored.
+ * The id is derived from the block, so sending a block that is already hosted returns its existing link (200, not 201).
  */
 export async function postMessage(request: Request, deps: Deps): Promise<Response> {
 	try {
@@ -314,7 +316,7 @@ export async function postMessage(request: Request, deps: Deps): Promise<Respons
 		if (typeof body.ciphertext !== "string" || !body.ciphertext.trim()) {
 			throw new ApiError(400, "invalid_request", "`ciphertext` must be a string containing an armored age block (-----BEGIN AGE ENCRYPTED FILE-----).");
 		}
-		const block = extractArmor(body.ciphertext)?.block;
+		const block = canonicalArmor(body.ciphertext);
 		if (!block || !ARMOR_BLOCK.test(block)) {
 			throw new ApiError(422, "invalid_ciphertext", "Only an armored age block (-----BEGIN AGE ENCRYPTED FILE-----) can be hosted.");
 		}
@@ -327,6 +329,10 @@ export async function postMessage(request: Request, deps: Deps): Promise<Respons
 		if (info.chainHash !== QUICKNET.hash) {
 			throw new UnsupportedChainError(`Ciphertext targets drand chain ${info.chainHash}; only quicknet (${QUICKNET.hash}) is supported.`);
 		}
+		const origin = new URL(request.url).origin;
+		// Already hosted: the same link again, even if the block has unlocked or the day's limit is reached, since nothing new is stored.
+		const existing = await getMessage(deps.db, await messageId(block));
+		if (existing) return json(messageFields(existing, origin));
 		const now = (deps.now ?? Date.now)();
 		if (!Number.isSafeInteger(info.round) || info.round > maxRound(now)) {
 			throw new ApiError(400, "invalid_request", `Unlock time is too far ahead; the maximum is ${LIMITS.maxUnlockSeconds / (365 * 86400)} years.`);
@@ -335,7 +341,7 @@ export async function postMessage(request: Request, deps: Deps): Promise<Respons
 			throw new ApiError(400, "invalid_request", "This message has already unlocked. Only messages that are still locked can be hosted.");
 		}
 		const web = sameOrigin(request);
-		const message = await createMessage(deps.db, {
+		const { message, created } = await createMessage(deps.db, {
 			ciphertext: block,
 			round: info.round,
 			unlockAt: roundTime(info.round),
@@ -344,7 +350,7 @@ export async function postMessage(request: Request, deps: Deps): Promise<Respons
 			dailyLimit: LIMITS.hostedPerDay,
 			recordEncrypt: web,
 		});
-		return json(messageFields(message, new URL(request.url).origin), { status: 201 });
+		return json(messageFields(message, origin), { status: created ? 201 : 200 });
 	} catch (err) {
 		if (err instanceof DailyLimitError) return errorJson(new ApiError(429, "rate_limited", "The daily limit for new links has been reached. Try again tomorrow (UTC)."));
 		return errorJson(toApiError(err));
