@@ -21,7 +21,7 @@ const nav: { href: string; label: string; icon: IconName }[] = [
 	{ href: "/faq", label: "FAQ", icon: "question" },
 	{ href: "/docs", label: "API", icon: "code" },
 ];
-const repo = "https://github.com/timelock-dev/tlock-worker";
+const repo = "https://github.com/timelock-dev/timelock.dev";
 const canonical = new URL(Astro.url.pathname.replace(/\.html$/, ""), Astro.site);
 const ogImage = new URL("/og.png", Astro.site);
 ---
@@ -94,7 +94,7 @@ const ogImage = new URL("/og.png", Astro.site);
 			<div class="container footer-inner">
 				<span class="footer-brand"><Logo size={16} /><span>© {new Date().getFullYear()} · Keys from <a href="https://drand.love/">drand</a></span></span>
 				<span class="footer-links">
-					<a href="https://github.com/timelock-dev/tlock-worker">Source on GitHub</a>
+					<a href="https://github.com/timelock-dev/timelock.dev">Source on GitHub</a>
 					<a href="https://x.com/_alanreed">@_alanreed</a>
 					<a href="mailto:contact@timelock.dev">contact@timelock.dev</a>
 				</span>
