@@ -1,4 +1,5 @@
-name = "tlock-worker"
+# Cloudflare Worker names cannot contain a dot, so the Worker for timelock.dev is named timelock-dev.
+name = "timelock-dev"
 # Reed Technology Solutions, LLC. This account owns the timelock-events D1 database.
 account_id = "08638017ebadc8e5b43fe6a8e3f881d8"
 main = "@astrojs/cloudflare/entrypoints/server"
@@ -6,8 +7,8 @@ compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-# timelock.dev is attached to this Worker in the Cloudflare dashboard today, which `wrangler deploy` leaves alone.
-# To manage the domain from config instead, uncomment:
+# Deploying with this line attaches the timelock.dev custom domain to this Worker and takes it away from any other Worker
+# that holds it, without asking when run in CI. Leave it commented out until this Worker has been checked on workers.dev.
 # routes = [{ pattern = "timelock.dev", custom_domain = true }]
 
 [[d1_databases]]
@@ -24,3 +25,7 @@ namespace_id = "1001"
   [ratelimits.simple]
   limit = 10
   period = 60
+
+# Workers Logs stay off: the site keeps no request logs (see Privacy in README.md).
+[observability]
+enabled = false

@@ -3,7 +3,7 @@
 Send a message into the future. [timelock.dev](https://timelock.dev) encrypts a message so that nobody can read it before a time you pick. It
 uses [tlock](https://eprint.iacr.org/2023/189) timelock encryption on the [drand](https://drand.love/) quicknet network.
 
-This repository is the site and API, deployed as the `tlock-worker` Cloudflare Worker. It started as a fork of Thibault Meunier's Rust
+This repository is the site and API, deployed as the `timelock-dev` Cloudflare Worker. It started as a fork of Thibault Meunier's Rust
 [tlock-worker](https://github.com/thibmeu/tlock-worker) and is now an Astro (TypeScript) app.
 
 - **Website:** encrypts and decrypts in the browser with [tlock-js](https://github.com/drand/tlock-js). Messages are not sent to the server.
@@ -45,23 +45,27 @@ npm run dev                 # http://localhost:4327, runs on workerd with local 
 
 ## Deploy
 
-The Worker name (`tlock-worker`) is unchanged. The `timelock.dev` custom domain is attached in the Cloudflare dashboard, and `wrangler deploy` leaves
-it alone. To manage it from config instead, uncomment `routes` in `wrangler.toml`.
+The Worker is named `timelock-dev` (Worker names cannot contain a dot). `wrangler.toml` holds everything it needs: the D1 database, the rate
+limit binding, compatibility settings and observability (off).
 
-One-time setup:
+Cloudflare Workers Builds deploys every push to `main` with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm run build` |
+| Deploy command | `npm run deploy` (applies pending D1 migrations, then `wrangler deploy`) |
+| API token | needs **D1: Edit** added to the permissions Workers Builds creates by default, or the migration step fails and nothing is deployed |
+
+To deploy by hand:
 
 ```sh
 npx wrangler login
-npx wrangler d1 create timelock-events        # copy the printed database_id into wrangler.toml
-npm run db:migrate:remote                     # creates the events table
-```
-
-Then, for each release:
-
-```sh
-npm run build                                 # astro build; this is the Cloudflare build command
+npm run build                                 # astro build
 npm run deploy                                # remote D1 migrations, then wrangler deploy
 ```
+
+The `timelock.dev` custom domain is the commented-out `routes` line in `wrangler.toml`. Deploying with it uncommented attaches the domain to this
+Worker and takes it from any other Worker that holds it. In CI wrangler does this without asking.
 
 The app needs no secrets or environment variables. If D1 is missing or its migration hasn't been applied, encryption and decryption keep working and recent activity shows as unavailable.
 
