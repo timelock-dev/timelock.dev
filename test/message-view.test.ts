@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countdownSegments, formatUtcShort, lockedEarlierText, lockProgress, messageMeta, timerHtml } from "../src/lib/message-view";
+import { countdownSegments, formatUtcShort, lockedEarlierText, messageMeta, timerHtml, timerShape } from "../src/lib/message-view";
 
 const digits = (s: number) =>
 	countdownSegments(s)
@@ -26,14 +26,46 @@ describe("countdownSegments", () => {
 });
 
 describe("timerHtml", () => {
-	it("renders one group per unit and a width that grows with the digit count", () => {
-		const k = (s: number) => Number(/--k:([\d.]+)/.exec(timerHtml(countdownSegments(s)))![1]);
+	const clock = (s: number) =>
+		timerHtml(countdownSegments(s))
+			.replace(/<span class="timer-label">[^<]*<\/span>/g, "")
+			.replace(/<[^>]+>/g, "");
+
+	it("reads as a clock: digit groups with a colon between them", () => {
+		expect(clock(3 * 60 + 54)).toBe("03:54");
+		expect(clock(3600 + 3 * 60 + 54)).toBe("01:03:54");
+		expect(clock(2 * 86400 + 4 * 3600 + 12 * 60 + 55)).toBe("02:04:12:55");
+		expect(clock(400 * 86400 + 3 * 3600 + 4 * 60)).toBe("1:35:03:04");
+	});
+
+	it("names each unit under its group and hides the colons from screen readers", () => {
 		const html = timerHtml(countdownSegments(90));
 		expect(html.match(/class="timer-seg"/g)).toHaveLength(2);
 		expect(html).toContain('<span class="timer-num">01</span><span class="timer-label">min</span>');
+		expect(html.match(/<span class="timer-colon" aria-hidden="true">:<\/span>/g)).toHaveLength(1);
+		expect(timerHtml(countdownSegments(2 * 86400)).match(/class="timer-colon"/g)).toHaveLength(3);
+	});
+
+	it("reports a width that grows with the digit count", () => {
+		const k = (s: number) => Number(/--k:([\d.]+)/.exec(timerHtml(countdownSegments(s)))![1]);
 		expect(k(90)).toBeLessThan(k(3600));
 		expect(k(3600)).toBeLessThan(k(2 * 86400));
 		expect(k(2 * 86400)).toBeLessThan(k(200 * 86400));
+	});
+});
+
+describe("timerShape", () => {
+	const shape = (s: number) => timerShape(countdownSegments(s));
+
+	it("stays the same from second to second, so only the digits are rewritten", () => {
+		expect(shape(234)).toBe(shape(233));
+		expect(shape(3599)).toBe(shape(60));
+	});
+
+	it("changes when a unit is added or dropped, when a unit's name changes, or when a number gains a digit", () => {
+		expect(shape(3600)).not.toBe(shape(3599));
+		expect(shape(2 * 86400)).not.toBe(shape(86400));
+		expect(shape(10 * 365 * 86400)).not.toBe(shape(9 * 365 * 86400));
 	});
 });
 
@@ -59,12 +91,5 @@ describe("message page text", () => {
 	it("says how long before the unlock it was locked", () => {
 		expect(lockedEarlierText(m.createdAt, m.unlockAt)).toBe("Locked 6 days 17 hours earlier, on");
 		expect(lockedEarlierText(m.unlockAt, m.unlockAt)).toBe("Locked on");
-	});
-
-	it("clamps progress to 0..1", () => {
-		expect(lockProgress(0, 100, -5)).toBe(0);
-		expect(lockProgress(0, 100, 25)).toBe(0.25);
-		expect(lockProgress(0, 100, 500)).toBe(1);
-		expect(lockProgress(100, 100, 100)).toBe(1);
 	});
 });

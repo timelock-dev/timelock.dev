@@ -1,7 +1,6 @@
 ---
 import { ACTIVITY_LIMIT, activityRowsHtml, statsHtml } from "../lib/activity";
 import type { EventStats, FeedEvent } from "../lib/events";
-import Icon from "./Icon.astro";
 
 interface Props {
 	/** null when D1 is unavailable. */
@@ -25,10 +24,6 @@ const { events, stats, now } = Astro.props;
 		</p>
 		<div class="Box-footer">Each row is one encryption or decryption. We record the type, the time and the unlock round. Never the message.</div>
 	</div>
-	<p class="note">
-		<Icon name="shield" />
-		<span>We never store your message. For higher security, <a href="/how-it-works#offline">encrypt offline</a>.</span>
-	</p>
 </section>
 
 <style>

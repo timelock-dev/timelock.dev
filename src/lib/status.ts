@@ -2,8 +2,6 @@ import { iconSvg } from "./icons";
 import { noteUnlockTime } from "./notes";
 import { formatFriendly, formatRelative, formatSpan, formatUtc } from "./time";
 
-const roundLabel = (round: number) => `drand round #${round.toLocaleString("en-US")}`;
-
 type Line = { text: string; muted?: boolean; warn?: boolean };
 
 function panel(tone: "done" | "locked" | "open", headline: string, lines: Line[]): string {
@@ -11,14 +9,11 @@ function panel(tone: "done" | "locked" | "open", headline: string, lines: Line[]
 	return `<div class="lock-panel is-${tone}"><span class="lock-panel-icon">${iconSvg(tone === "open" ? "unlock" : "lock")}</span><div><p class="lock-panel-headline">${headline}</p>${body}</div></div>`;
 }
 
-/** Shown after encrypting. */
-export function encryptedPanelHtml(unlockAt: number, round: number, now: number): string {
+/** Shown after encrypting when no share link could be made. */
+export function encryptedPanelHtml(unlockAt: number, now: number): string {
 	const left = (unlockAt - now) / 1000;
 	const when = formatFriendly(unlockAt);
-	return panel("done", "Your message is encrypted", [
-		{ text: left > 0 ? `It can be opened on ${when} (in ${formatSpan(left)}).` : `It can be opened now. It unlocked on ${when}.` },
-		{ text: `${formatUtc(unlockAt)} · ${roundLabel(round)}`, muted: true },
-	]);
+	return panel("done", "Your message is encrypted", [{ text: left > 0 ? `It can be opened on ${when} (in ${formatSpan(left)}).` : `It can be opened now. It unlocked on ${when}.` }]);
 }
 
 function notesLines(unlockAt: number, notes: string[]): Line[] {
@@ -32,20 +27,8 @@ function notesLines(unlockAt: number, notes: string[]): Line[] {
 }
 
 /** Shown in Decrypt once a pasted message has been read. `notes` are the lines found outside the BEGIN…END block. */
-export function decryptStatePanelHtml(unlockAt: number, round: number, now: number, notes: string[] = []): string {
+export function decryptStatePanelHtml(unlockAt: number, now: number, notes: string[] = []): string {
 	const left = (unlockAt - now) / 1000;
-	if (left > 0) {
-		return panel("locked", "Still locked", [
-			{ text: `Opens ${formatFriendly(unlockAt)}` },
-			{ text: formatUtc(unlockAt), muted: true },
-			{ text: `${formatSpan(left)} to go` },
-			{ text: roundLabel(round), muted: true },
-			...notesLines(unlockAt, notes),
-		]);
-	}
-	return panel("open", "Ready to decrypt", [
-		{ text: `Unlocked ${formatFriendly(unlockAt)} (${formatRelative(unlockAt, now)})` },
-		{ text: `${formatUtc(unlockAt)} · ${roundLabel(round)}`, muted: true },
-		...notesLines(unlockAt, notes),
-	]);
+	if (left > 0) return panel("locked", "Still locked", [{ text: `Opens ${formatFriendly(unlockAt)}, in ${formatSpan(left)}.` }, ...notesLines(unlockAt, notes)]);
+	return panel("open", "Ready to decrypt", [{ text: `Unlocked ${formatFriendly(unlockAt)} (${formatRelative(unlockAt, now)}).` }, ...notesLines(unlockAt, notes)]);
 }
